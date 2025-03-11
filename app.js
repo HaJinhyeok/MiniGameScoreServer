@@ -54,9 +54,9 @@ app.get("/scores/:id", (req, res) => {
     }
 });
 
-app.post("/top3", (req, res) => {
+app.post("/top3", async (req, res) => {
     const query = "SELECT * FROM user";
-    db.query(query, [], (err, data) => {
+    await db.query(query, [], (err, data) => {
         let users = data.sort((a, b) => {
             return b.score - a.score;
         });
@@ -78,15 +78,15 @@ app.post("/register", (req, res) => {
     const { id, score } = req.body;
     let insertQuery;
     const selectQuery = "select * from user where id=?;";
-    db.query(selectQuery, [id], (err, data) => {
+    db.query(selectQuery, [id], async (err, data) => {
         console.log("current id: " + id + " user info: " + JSON.stringify(data[0]));
 
         if (data[0] === undefined) {
             // 아직 등록이 한 번도 안 된 유저 신규 등록
             insertQuery = "INSERT INTO user(id,score) VALUES(?,?);";
-            db.query(insertQuery, [id, score], (err) => {
+            await db.query(insertQuery, [id, score], (err) => {
                 if (err) console.log(`register error: ${err}`);
-                else res.sendStatus(200);
+                //else res.sendStatus(200);
             });
             result.cmd = 1001;
             result.message = "점수가 신규 등록 되었습니다.";
@@ -95,9 +95,9 @@ app.post("/register", (req, res) => {
             // 이미 등록된 유저 스코어 업데이트
             if (data[0].score < score) {
                 insertQuery = "UPDATE user SET score=? where id=?;";
-                db.query(insertQuery, [score, id], (err) => {
+                await db.query(insertQuery, [score, id], (err) => {
                     if (err) console.log(`register error: ${err}`);
-                    else res.sendStatus(200);
+                    //else res.sendStatus(200);
                 });
                 result.cmd = 1002;
                 result.message = "점수가 갱신되었습니다.";
