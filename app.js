@@ -15,45 +15,6 @@ let users = [];
 
 app.use(express.json());
 
-app.get('/', (req, res) => {
-    res.send("hello world!");
-});
-
-app.get('/scores', (req, res) => {
-    res.send("This is score page.");
-})
-
-app.get("/scores/top3", (req, res) => {
-    let result = users.sort((a, b) => {
-        return b.score - a.score;
-    });
-
-    result = result.slice(0, 3);
-
-    res.send({
-        cmd: 1101,
-        message: "",
-        result
-    });
-});
-
-app.get("/scores/:id", (req, res) => {
-    console.log("id: " + req.params.id);
-    let user = users.find(dst => dst.id === req.params.id);
-    if (user === undefined) {
-        res.send({
-            cmd: 1103,
-            message: "Wrong id...",
-        });
-    } else {
-        res.send({
-            cmd: 1102,
-            message: "",
-            result: user
-        });
-    }
-});
-
 app.post("/top3", async (req, res) => {
     const query = "SELECT * FROM user";
     await db.query(query, [], (err, data) => {
@@ -70,6 +31,22 @@ app.post("/top3", async (req, res) => {
     });
 });
 
+app.post("/login", (req, res) => {
+    let result = {
+        cmd: -1,
+        message: "",
+    };
+    // 필요한 UI: password input field, 회원가입 button, 로그인 button
+    // input field에서 id와 password를 받아오고,
+    // select 쿼리문으로 정보를 가져와서 조회한다.
+    // 1. id가 없을 경우 - cmd 1201
+    // 2. id는 존재하지만 password가 틀렸을 경우 - cmd 1202
+    // 3. id가 존재하고 password 또한 일치할 경우 - cmd 1203
+    const { id, password } = req.body;
+})
+
+// 회원가입과 점수 등록 post 요청을 분리해야 한다.
+// 회원가입: id - password - confirm_password
 app.post("/register", (req, res) => {
     let result = {
         cmd: -1,
