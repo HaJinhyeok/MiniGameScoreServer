@@ -11,18 +11,15 @@ const { json } = require("body-parser");
 
 const db = require("./config/db");
 
-let users = [];
-
 app.use(express.json());
 
-app.post("/top3", async (req, res) => {
-    const query = "SELECT * FROM user";
-    await db.query(query, [], (err, data) => {
+app.post("/top3", (req, res) => {
+    const query = "SELECT * FROM users";
+    db.query(query, [], (err, data) => {
         let users = data.sort((a, b) => {
             return b.score - a.score;
         });
         const result = users.slice(0, 3);
-        console.log(users);
         res.send({
             cmd: 1101,
             message: "탑3 점수 반환",
@@ -36,32 +33,67 @@ app.post("/login", (req, res) => {
         cmd: -1,
         message: "",
     };
-    // 필요한 UI: password input field, 회원가입 button, 로그인 button
-    // input field에서 id와 password를 받아오고,
-    // select 쿼리문으로 정보를 가져와서 조회한다.
-    // 1. id가 없을 경우 - cmd 1201
-    // 2. id는 존재하지만 password가 틀렸을 경우 - cmd 1202
-    // 3. id가 존재하고 password 또한 일치할 경우 - cmd 1203
     const { id, password } = req.body;
+    // select 쿼리문으로 정보를 가져와서 조회한다.
+    const query = "SELECT * FROM users where id=?;";
+    db.query(query, [id], (err, data) => {
+        if (data[0] === undefined) {
+            // 1. id가 없을 경우 - cmd 1201
+            result.cmd = 1201;
+            result.message = "ID가 없는데요";
+        } else if (data[0].id === id && data[0].password !== password) {
+            // 2. id는 존재하지만 password가 틀렸을 경우 - cmd 1202
+            result.cmd = 1202;
+            result.message = "비번 틀렸는데요";
+        } else {
+            // 3. id가 존재하고 password 또한 일치할 경우 - cmd 1203
+            result.cmd = 1203;
+            result.message = "로그인 성공";
+        }
+        res.send(result);
+    });
 })
 
-// 회원가입과 점수 등록 post 요청을 분리해야 한다.
-// 회원가입: id - password - confirm_password
 app.post("/register", (req, res) => {
+    let result = {
+        cmd: -1,
+        message: "",
+    }
+    const { id, password } = req.body;
+    const query = "SELECT * FROM users where id=?;";
+    db.query(query, [id], (err, data) => {
+        if (data[0] === undefined) {
+            // 1. id가 없는 신규 유저가 맞을 경우 - cmd 1301
+            // 신규 유저 등록하기
+            const registerQuery = "INSERT INTO users(id,password,score) VALUES(?,?,0);";
+            db.query(registerQuery, [id, password], (err) => {
+                if (err) console.log(`register error: ${err}`);
+            })
+            result.cmd = 1301;
+            result.message = "신규 유저 등록";
+        } else {
+            // 2. id가 이미 존재하는 유저일 경우 - cmd 1302
+            result.cmd = 1302;
+            result.message = "이미 등록된 유저입니다";
+        }
+        res.send(result);
+    })
+})
+
+// 회원가입과 점수 update post 요청을 분리해야 한다.
+app.post("/update", (req, res) => {
     let result = {
         cmd: -1,
         message: "",
     };
     const { id, score } = req.body;
     let insertQuery;
-    const selectQuery = "select * from user where id=?;";
-    db.query(selectQuery, [id], async (err, data) => {
-        console.log("current id: " + id + " user info: " + JSON.stringify(data[0]));
-
+    const selectQuery = "select * from users where id=?;";
+    db.query(selectQuery, [id], (err, data) => {
         if (data[0] === undefined) {
             // 아직 등록이 한 번도 안 된 유저 신규 등록
-            insertQuery = "INSERT INTO user(id,score) VALUES(?,?);";
-            await db.query(insertQuery, [id, score], (err) => {
+            insertQuery = "INSERT INTO users(id,score) VALUES(?,?);";
+            db.query(insertQuery, [id, score], (err) => {
                 if (err) console.log(`register error: ${err}`);
                 //else res.sendStatus(200);
             });
@@ -71,8 +103,8 @@ app.post("/register", (req, res) => {
         else if (data[0].id === id) {
             // 이미 등록된 유저 스코어 업데이트
             if (data[0].score < score) {
-                insertQuery = "UPDATE user SET score=? where id=?;";
-                await db.query(insertQuery, [score, id], (err) => {
+                insertQuery = "UPDATE users SET score=? where id=?;";
+                db.query(insertQuery, [score, id], (err) => {
                     if (err) console.log(`register error: ${err}`);
                     //else res.sendStatus(200);
                 });
