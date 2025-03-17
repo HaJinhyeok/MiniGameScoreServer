@@ -2,14 +2,27 @@
 
 const express = require("express");
 const bodyParser = require("body-parser");
+const bcrypt = require("bcrypt");
+const dotenv = require("dotenv");
+dotenv.config;
 
 const app = express();
-const ctrl = require("./routes/home.ctrl");
+// const ctrl = require("./routes/home.ctrl");
 const PORT = 3030;
 
 const { json } = require("body-parser");
 
 const db = require("./config/db");
+
+// 비밀번호 암호화 with salting
+const hashedPassword = async (password) => {
+    const saltRounds = 10;
+    const salt = await bcrypt.genSalt(saltRounds);
+    //console.log("Salt: " + salt(process.env.SALTROUNDS));
+    const result = await bcrypt.hash(password, salt);
+    //console.log("HashedPassword: " + result);
+    return result;
+};
 
 app.use(express.json());
 
@@ -28,20 +41,24 @@ app.post("/top3", (req, res) => {
     });
 });
 
-app.post("/login", (req, res) => {
+app.post("/login", async (req, res) => {
     let result = {
         cmd: -1,
         message: "",
     };
-    const { id, password } = req.body;
+    let { id, password } = req.body;
+    //password = await hashedPassword(password);
     // select 쿼리문으로 정보를 가져와서 조회한다.
     const query = "SELECT * FROM users where id=?;";
     db.query(query, [id], (err, data) => {
+        if (err) {
+            console.log(`login error: ${err}`);
+        }
         if (data[0] === undefined) {
             // 1. id가 없을 경우 - cmd 1201
             result.cmd = 1201;
             result.message = "ID가 없는데요";
-        } else if (data[0].id === id && data[0].password !== password) {
+        } else if (data[0].id === id && !bcrypt.compareSync(password, data[0].password)) {
             // 2. id는 존재하지만 password가 틀렸을 경우 - cmd 1202
             result.cmd = 1202;
             result.message = "비번 틀렸는데요";
@@ -54,19 +71,21 @@ app.post("/login", (req, res) => {
     });
 })
 
-app.post("/register", (req, res) => {
+app.post("/register", async (req, res) => {
     let result = {
         cmd: -1,
         message: "",
     }
-    const { id, password } = req.body;
+    let { id, password } = req.body;
+    password = await hashedPassword(password);
     const query = "SELECT * FROM users where id=?;";
+    const initScore = 0;
     db.query(query, [id], (err, data) => {
         if (data[0] === undefined) {
             // 1. id가 없는 신규 유저가 맞을 경우 - cmd 1301
             // 신규 유저 등록하기
-            const registerQuery = "INSERT INTO users(id,password,score) VALUES(?,?,0);";
-            db.query(registerQuery, [id, password], (err) => {
+            const registerQuery = "INSERT INTO users(id,password,score) VALUES(?,?,?);";
+            db.query(registerQuery, [id, password, initScore], (err) => {
                 if (err) console.log(`register error: ${err}`);
             })
             result.cmd = 1301;
@@ -94,7 +113,7 @@ app.post("/update", (req, res) => {
             // 아직 등록이 한 번도 안 된 유저 신규 등록
             insertQuery = "INSERT INTO users(id,score) VALUES(?,?);";
             db.query(insertQuery, [id, score], (err) => {
-                if (err) console.log(`register error: ${err}`);
+                if (err) console.log(`update error: ${err}`);
                 //else res.sendStatus(200);
             });
             result.cmd = 1001;
@@ -105,7 +124,7 @@ app.post("/update", (req, res) => {
             if (data[0].score < score) {
                 insertQuery = "UPDATE users SET score=? where id=?;";
                 db.query(insertQuery, [score, id], (err) => {
-                    if (err) console.log(`register error: ${err}`);
+                    if (err) console.log(`update error: ${err}`);
                     //else res.sendStatus(200);
                 });
                 result.cmd = 1002;
