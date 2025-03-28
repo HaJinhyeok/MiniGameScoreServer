@@ -47,7 +47,6 @@ app.post("/login", async (req, res) => {
         message: "",
     };
     let { id, password } = req.body;
-    //password = await hashedPassword(password);
     // select 쿼리문으로 정보를 가져와서 조회한다.
     const query = "SELECT * FROM users where id=?;";
     db.query(query, [id], (err, data) => {
@@ -114,7 +113,6 @@ app.post("/update", (req, res) => {
             insertQuery = "INSERT INTO users(id,score) VALUES(?,?);";
             db.query(insertQuery, [id, score], (err) => {
                 if (err) console.log(`update error: ${err}`);
-                //else res.sendStatus(200);
             });
             result.cmd = 1001;
             result.message = "점수가 신규 등록 되었습니다.";
@@ -125,7 +123,6 @@ app.post("/update", (req, res) => {
                 insertQuery = "UPDATE users SET score=? where id=?;";
                 db.query(insertQuery, [score, id], (err) => {
                     if (err) console.log(`update error: ${err}`);
-                    //else res.sendStatus(200);
                 });
                 result.cmd = 1002;
                 result.message = "점수가 갱신되었습니다.";
